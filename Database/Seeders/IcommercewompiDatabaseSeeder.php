@@ -5,74 +5,71 @@ namespace Modules\Icommercewompi\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Icommerce\Entities\PaymentMethod;
-use Modules\Isite\Jobs\ProcessSeeds;
 
 class IcommercewompiDatabaseSeeder extends Seeder
 {
-  /**
-   * Run the database seeds.
-   *
-   * @return void
-   */
-  public function run()
-  {
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run()
+    {
+      
+      Model::unguard();
+  
+      $this->call(IcommercewompiModuleTableSeeder::class);
+      
+      $name = config('asgard.icommercewompi.config.paymentName');
+      $result = PaymentMethod::where('name',$name)->first();
 
-    Model::unguard();
-    ProcessSeeds::dispatch([
-      "baseClass" => "\Modules\Icommercewompi\Database\Seeders",
-      "seeds" => ["IcommercewompiModuleTableSeeder"]
-    ]);
+      if(!$result){
 
-    $name = config('asgard.icommercewompi.config.paymentName');
-    $result = PaymentMethod::where('name', $name)->first();
+        $options['init'] = "Modules\Icommercewompi\Http\Controllers\Api\IcommerceWompiApiController";
+        $options['mainimage'] = null;
+        $options['publicKey'] = null;
+        $options['privateKey'] = null;
+        $options['eventSecretKey'] = null;
+        $options['signatureIntegrityKey'] = null;
+        $options['mode'] = "sandbox";
+        $options['minimunAmount'] = 15000;
+        $options['showInCurrencies'] = ["COP"];
+  
+        $titleTrans = 'Wompi';
+        $descriptionTrans = 'icommercewompi::icommercewompis.description';
 
-    if (!$result) {
+        $params = array(
+          'name' => $name,
+          'status' => 1,
+          'options' => $options
+        );
+        $paymentMethod = PaymentMethod::create($params);
 
-      $options['init'] = "Modules\Icommercewompi\Http\Controllers\Api\IcommerceWompiApiController";
-      $options['mainimage'] = null;
-      $options['publicKey'] = null;
-      $options['privateKey'] = null;
-      $options['eventSecretKey'] = null;
-      $options['mode'] = "sandbox";
-      $options['minimunAmount'] = 15000;
-      $options['showInCurrencies'] = ["COP"];
+        $this->addTranslation($paymentMethod,'en',$titleTrans,$descriptionTrans);
+        $this->addTranslation($paymentMethod,'es',$titleTrans,$descriptionTrans);
 
-      $titleTrans = 'Wompi';
-      $descriptionTrans = 'icommercewompi::icommercewompis.description';
+      }else{
 
-      $params = array(
-        'name' => $name,
-        'status' => 1,
-        'options' => $options
-      );
-      $paymentMethod = PaymentMethod::create($params);
+        $this->command->alert("This method has already been installed !!");
 
-      $this->addTranslation($paymentMethod, 'en', $titleTrans, $descriptionTrans);
-      $this->addTranslation($paymentMethod, 'es', $titleTrans, $descriptionTrans);
-
-    } else {
-
-      $this->command->alert("This method has already been installed !!");
-
+      }
+   
     }
 
-  }
 
+    /*
+    * Add Translations
+    * PD: New Alternative method due to problems with astronomic translatable
+    **/
+    public function addTranslation($paymentMethod,$locale,$title,$description){
 
-  /*
-  * Add Translations
-  * PD: New Alternative method due to problems with astronomic translatable
-  **/
-  public function addTranslation($paymentMethod, $locale, $title, $description)
-  {
+      \DB::table('icommerce__payment_method_translations')->insert([
+          'title' => $title,
+          'description' => trans($description,[],$locale),
+          'payment_method_id' => $paymentMethod->id,
+          'locale' => $locale
+      ]);
 
-    \DB::table('icommerce__payment_method_translations')->insert([
-      'title' => $title,
-      'description' => trans($description, [], $locale),
-      'payment_method_id' => $paymentMethod->id,
-      'locale' => $locale
-    ]);
-
-  }
+    }
 
 }
